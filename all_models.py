@@ -9,13 +9,19 @@
 # 
 # 1. complete
 # 2. same natural death rate U and P
-# 3. E doesn't see U cells
-# 4. E does not saturate (back to E seeing U, and remains true henceforth)
-# 5. simplified E formulation
-# 6. no E at all
+# 3. E doesn't get recruited by presence of U cells
+# 4. no U
+# 5. no E
+# 6. no E and no U
 # 
 
 import numpy as np
+from scipy.integrate import odeint
+
+#initial conditions that are always true regardless of model
+U0=0      #no infected cells
+P0=0      #productively infected cells
+V0=0.03   #start with 30 copies per mL
 
 # # complete model
 # (13 free parameters + 5 initial conditions)
@@ -30,9 +36,18 @@ def model_1(X,t,aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g):
     dY[0] = aS - dS*S - Bt*S*V               #susceptible cells
     dY[1] = (1-tau)*Bt*S*V - dU*U - k*E*U    #unproductively infected
     dY[2] = tau*Bt*S*V - dP*P - k*E*P        #productively infected
-    dY[3] = w*(P+U)*E/(1+E/E50) + aE - dE*E;   #adaptive immune system
+    dY[3] = w*(P+U)*E/(E+E50) + aE - dE*E;   #adaptive immune system
     dY[4] = p*P - g*V - Bt*S*V               #virus
     return dY
+
+def run1(tt,aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_1, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g), mxstep=1000)
+    return sol
+
+def run1_tofit(tt,aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_1, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g), mxstep=1000)
+    logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    return logV
 
 # # same death rate for U & P
 # (12 free parameters + 5 initial conditions)
@@ -47,6 +62,15 @@ def model_2(X,t,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g):
     dY[4] = p*P - g*V - Bt*S*V               #virus
     return dY
 
+def run2(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_2, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    return sol
+
+def run2_tofit(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_2, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    return logV
+
 # # adaptive does not respond to unproductive
 # (12 free parameters + 5 initial conditions)
 # - now the adaptive response does not remove U cells or grow proportionally to them, this is the same number of free parameters but tests this hypothesis. Technically wouldn't even have to simulate U at this point, but still need both beta and tau to make it work so that many susceptibles are removed even as not that many P are made.
@@ -60,38 +84,73 @@ def model_3(X,t,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g):
     dY[4] = p*P - g*V - Bt*S*V               #virus
     return dY
 
-# # adaptive does not saturate
-# (11 free parameters + 5 initial conditions)
-# - now there is no saturation in adaptive compartment
-def model_4(X,t,aS,dS,Bt,tau,dI,k,aE,dE,w,p,g):  
-    dY = np.zeros(5);
-    S=X[0]; U=X[1]; P=X[2]; E=X[3]; V=X[4];    
+def run3(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_3, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    return sol
+
+def run3_tofit(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_3, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    return logV
+
+# # no unproductive at all (beta = beta*tau)
+# (11 free parameters + 4 initial conditions)
+# - now the adaptive response does not remove U cells or grow proportionally to them, this is the same number of free parameters but tests this hypothesis. Technically wouldn't even have to simulate U at this point, but still need both beta and tau to make it work so that many susceptibles are removed even as not that many P are made.
+def model_4(X,t,aS,dS,Bt,dI,k,aE,dE,E50,w,p,g):  
+    dY = np.zeros(4);
+    S=X[0]; P=X[1]; E=X[2]; V=X[3];    
     dY[0] = aS - dS*S - Bt*S*V               #susceptible cells
-    dY[1] = (1-tau)*Bt*S*V - dI*U - k*E*U    #unproductively infected
-    dY[2] = tau*Bt*S*V - dI*P - k*E*P        #productively infected
-    dY[3] = w*E*(P+U) + aE - dE*E; #adaptive immune system
-    dY[4] = p*P - g*V - Bt*S*V               #virus
+    dY[1] = Bt*S*V - dI*P - k*E*P        #productively infected
+    dY[2] = w*E*P/(E+E50) + aE - dE*E;       #adaptive immune system
+    dY[3] = p*P - g*V - Bt*S*V               #virus
     return dY
 
-# # simplified adaptive
-# (9 free parameters + 3 initial conditions)
-# - now the adaptive response is non-mechanistic, just kills infecteds based on how many productively infected cells are around
-# - here have just ignored U completed except for the impact of tau
-def model_5(X,t,aS,dS,Bt,tau,dI,k,P50,p,g):  
-    dY = np.zeros(3);
-    S=X[0]; P=X[1]; V=X[2];    
+def run4(tt,aS,dS,Bt,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_4, [S0,P0,E0,V0], tt, (aS,dS,Bt,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    return sol
+
+def run4_tofit(tt,aS,dS,Bt,dI,k,aE,dE,E50,w,p,g,S0,E0):
+    sol=odeint(model_4, [S0,P0,E0,V0], tt, (aS,dS,Bt,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
+    logV=np.log10(sol[:,3]*1e3) #log viral load copies per mL
+    return logV
+
+# # no adaptive
+# (8 free parameters + 4 initial conditions)
+# - now the adaptive response does not remove U cells or grow proportionally to them, this is the same number of free parameters but tests this hypothesis. Technically wouldn't even have to simulate U at this point, but still need both beta and tau to make it work so that many susceptibles are removed even as not that many P are made.
+def model_5(X,t,aS,dS,Bt,tau,dU,dP,p,g):  
+    dY = np.zeros(4);
+    S=X[0]; U=X[1]; P=X[2]; V=X[3];    
     dY[0] = aS - dS*S - Bt*S*V               #susceptible cells
-    dY[1] = tau*Bt*S*V - dI*P - k*P/(P+P50)  #productively infected
-    dY[2] = p*P - g*V - Bt*S*V               #virus
+    dY[1] = (1-tau)*Bt*S*V - dU*U            #unproductively infected
+    dY[2] = tau*Bt*S*V - dP*P        #productively infected
+    dY[3] = p*P - g*V - Bt*S*V               #virus
     return dY
 
-# # no adaptive at all
-# (7 free parameters + 3 initial conditions)
+def run5(tt,aS,dS,Bt,tau,dU,dP,p,g,S0,E0):
+    sol=odeint(model_5, [S0,U0,P0,V0], tt, (aS,dS,Bt,tau,dU,dP,p,g), mxstep=1000)
+    return sol
+
+def run5_tofit(tt,aS,dS,Bt,tau,dU,dP,p,g,S0,E0):
+    sol=odeint(model_5, [S0,U0,P0,V0], tt, (aS,dS,Bt,tau,dU,dP,p,g), mxstep=1000)
+    logV=np.log10(sol[:,3]*1e3) #log viral load copies per mL
+    return logV
+
+# # no adaptive and no undproductive
+# (6 free parameters + 3 initial conditions)
 # - now the adaptive response does not remove U cells or grow proportionally to them
-def model_6(X,t,aS,dS,Bt,tau,dI,p,g):  
+def model_6(X,t,aS,dS,Bt,dI,p,g):  
     dY = np.zeros(3);
     S=X[0]; P=X[1]; V=X[2];    
     dY[0] = aS - dS*S - Bt*S*V  #susceptible cells
-    dY[1] = tau*Bt*S*V - dI*P   #productively infected
+    dY[1] = Bt*S*V - dI*P   #productively infected
     dY[2] = p*P - g*V - Bt*S*V  #virus
     return dY
+
+def run6(tt,aS,dS,Bt,dI,p,g,S0):
+    sol=odeint(model_6, [S0,P0,V0], tt, (aS,dS,Bt,dI,p,g), mxstep=1000)
+    return sol
+
+def run6_tofit(tt,aS,dS,Bt,dI,p,g,S0):
+    sol=odeint(model_6, [S0,P0,V0], tt, (aS,dS,Bt,dI,p,g), mxstep=1000)
+    logV=np.log10(sol[:,2]*1e3) #log viral load copies per mL
+    return logV
