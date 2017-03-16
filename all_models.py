@@ -44,9 +44,20 @@ def run1(tt,aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g,S0,E0):
     sol=odeint(model_1, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g), mxstep=1000)
     return sol
 
-def run1_tofit(tt,aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g,S0,E0):
+#function to fit model 1 with pegged parameters
+def fit1(tt,aS,dS,dU,dP,dE,E50,w,k,S0,E0):
+    
+    #initial conditions that are always true regardless of model
+    U0=0      #no infected cells
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4; tau=0.05; p=5e4; g=23; aE=1e-4; #pegged parameters
+    
     sol=odeint(model_1, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dU,dP,k,aE,dE,E50,w,p,g), mxstep=1000)
     logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
 
 # # same death rate for U & P
@@ -66,9 +77,19 @@ def run2(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
     sol=odeint(model_2, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     return sol
 
-def run2_tofit(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+def fit2(tt,aS,dS,dE,E50,w,k,S0,E0):
+    
+    #initial conditions that are always true regardless of model
+    U0=0      #no infected cells
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4; dI=1; tau=0.05; p=5e4; g=23; aE=1e-4; #pegged parameters
+    
     sol=odeint(model_2, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
 
 # # adaptive does not respond to unproductive
@@ -88,10 +109,21 @@ def run3(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
     sol=odeint(model_3, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     return sol
 
-def run3_tofit(tt,aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g,S0,E0):
+def fit3(tt,aS,dS,dE,E50,w,k,S0,E0):
+    
+    #initial conditions that are always true regardless of model
+    U0=0      #no infected cells
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4; dI=1; tau=0.05; p=5e4; g=23; aE=1e-4; #pegged parameters
+    
     sol=odeint(model_3, [S0,U0,P0,E0,V0], tt, (aS,dS,Bt,tau,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     logV=np.log10(sol[:,4]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
+
 
 # # no unproductive at all (beta = beta*tau)
 # (11 free parameters + 4 initial conditions)
@@ -109,10 +141,20 @@ def run4(tt,aS,dS,Bt,dI,k,aE,dE,E50,w,p,g,S0,E0):
     sol=odeint(model_4, [S0,P0,E0,V0], tt, (aS,dS,Bt,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     return sol
 
-def run4_tofit(tt,aS,dS,Bt,dI,k,aE,dE,E50,w,p,g,S0,E0):
+def fit4(tt,aS,dS,dE,E50,w,k,S0,E0):
+    
+    #initial conditions that are always true regardless of model
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4*0.05; dI=1; p=5e4; g=23; aE=1e-4; #pegged parameters
+    
     sol=odeint(model_4, [S0,P0,E0,V0], tt, (aS,dS,Bt,dI,k,aE,dE,E50,w,p,g), mxstep=1000)
     logV=np.log10(sol[:,3]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
+
 
 # # no adaptive
 # (8 free parameters + 4 initial conditions)
@@ -130,9 +172,19 @@ def run5(tt,aS,dS,Bt,tau,dU,dP,p,g,S0,E0):
     sol=odeint(model_5, [S0,U0,P0,V0], tt, (aS,dS,Bt,tau,dU,dP,p,g), mxstep=1000)
     return sol
 
-def run5_tofit(tt,aS,dS,Bt,tau,dU,dP,p,g,S0,E0):
-    sol=odeint(model_5, [S0,U0,P0,V0], tt, (aS,dS,Bt,tau,dU,dP,p,g), mxstep=1000)
+def fit5(tt,aS,dS,S0):
+    
+    #initial conditions that are always true regardless of model
+    U0=0      #no infected cells
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4; dI=1; tau=0.05; p=5e4; g=23; #pegged parameters
+    
+    sol=odeint(model_5, [S0,U0,P0,V0], tt, (aS,dS,Bt,tau,dI,dI,p,g), mxstep=1000)
     logV=np.log10(sol[:,3]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
 
 # # no adaptive and no undproductive
@@ -150,7 +202,16 @@ def run6(tt,aS,dS,Bt,dI,p,g,S0):
     sol=odeint(model_6, [S0,P0,V0], tt, (aS,dS,Bt,dI,p,g), mxstep=1000)
     return sol
 
-def run6_tofit(tt,aS,dS,Bt,dI,p,g,S0):
+def fit6(tt,aS,dS,S0):
+    
+    #initial conditions that are always true regardless of model
+    P0=0      #productively infected cells
+    V0=0.03   #start with 30 copies per mL
+    
+    Bt=1e-4*0.05; dI=1; p=5e4; g=23; #pegged parameters
+    
     sol=odeint(model_6, [S0,P0,V0], tt, (aS,dS,Bt,dI,p,g), mxstep=1000)
     logV=np.log10(sol[:,2]*1e3) #log viral load copies per mL
+    logV[logV<-3]=15 #safety net for bad parameter space
+
     return logV
